@@ -17,6 +17,7 @@ import org.adridadou.ethereum.propeller.solidity.converters.SolidityTypeGroup;
 import org.adridadou.ethereum.propeller.solidity.converters.decoders.SolidityTypeDecoder;
 import org.adridadou.ethereum.propeller.solidity.converters.decoders.list.CollectionDecoder;
 import org.adridadou.ethereum.propeller.solidity.converters.encoders.SolidityTypeEncoder;
+import org.adridadou.ethereum.propeller.solidity.converters.encoders.list.ArrayEncoder;
 import org.adridadou.ethereum.propeller.solidity.converters.encoders.list.CollectionEncoder;
 import org.adridadou.ethereum.propeller.values.*;
 import org.apache.commons.lang.ArrayUtils;
@@ -27,7 +28,10 @@ import org.web3j.protocol.core.DefaultBlockParameter;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -367,7 +371,15 @@ class EthereumProxy {
             return listEncoders.stream().map(cls -> {
                 try {
                     if (abiParam.isDynamic()) {
-                        return cls.getConstructor(List.class).newInstance(getEncoders(type, abiParam));
+                        if (abiParam.getType().contains("[][]")) {
+                            List<SolidityTypeEncoder> as2 = new ArrayList();
+                            as2.add(new ArrayEncoder(getEncoders(type, abiParam)));
+
+                            return cls.getConstructor(List.class).newInstance(as2);
+                        } else {
+                            return cls.getConstructor(List.class).newInstance(getEncoders(type, abiParam));
+
+                        }
                     }
                     return cls.getConstructor(List.class, Integer.class).newInstance(getEncoders(type, abiParam), abiParam.getArraySize());
                 } catch (InstantiationException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
